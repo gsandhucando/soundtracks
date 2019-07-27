@@ -3,10 +3,14 @@
 const router = require("express").Router();
 const axios = require("axios");
 
+const getComposer = require("../helper/getComposer");
+const titleSearch = require("../helper/titleSearch");
+
 router.route("/search").post((req, res) => {
   // console.log(req.body, '*********')
   //movie title adding + to spaces
   const movie = req.body.movie.trim().replace(/\s+/, "+");
+  const year = req.body.year ? req.body.year.trim() : null;
   //correctly formated title
   let movieTitle = req.body.movie.trim().replace(/\s+/, " ");
   //call api to get all the resualts for movies
@@ -14,7 +18,7 @@ router.route("/search").post((req, res) => {
     .get(
       `https://api.themoviedb.org/3/search/movie?api_key=${
         process.env.MOVIEDB_KEY
-      }&query=${movie}`
+      }&query=${movie}${year ? "&year=" + year : ""}`
     )
     .then(response => {
       //compare the searched title with the results that we get
@@ -45,6 +49,7 @@ router.route("/search").post((req, res) => {
     .then(response => {
       //get information we need from the film
       const film = response.data;
+      // console.log(film, "***********");
       movieTitle = film.title;
       const year = film.release_date.slice(0, 4);
       const country = film.production_countries[0].iso_3166_1.toLowerCase();
@@ -56,22 +61,30 @@ router.route("/search").post((req, res) => {
           process.env.DISCOGS_KEY
         }&secret=${
           process.env.DISCOGS_SECRET
-        }&type=release&style=soundtrack&year=${year}&country=${country}`
+        }&type=release&style=soundtrack`
       );
     })
     .then(response => {
       //we get a response back from searching for title year and country and get back a response of soundtracks
-      console.log(response.data.results.length);
       const { results } = response.data;
       //look through each soundtrack and compare the title for the one we looked for
-      const titleMatchIndex = results.findIndex(
-        soundTrack =>
-          soundTrack.title.trim().toLowerCase() === movieTitle.toLowerCase() ||
-          soundTrack.title
-            .trim()
-            .toLowerCase()
-            .includes(movieTitle.toLowerCase())
-      );
+      // console.log(results, movieTitle);
+      let titleMatchIndex = -1;
+      if (results.length > 0) {
+        titleMatchIndex = results.findIndex(
+          soundTrack =>
+            soundTrack.title.trim().toLowerCase() ===
+              movieTitle.toLowerCase() ||
+            soundTrack.title
+              .trim()
+              .toLowerCase()
+              .includes(movieTitle.toLowerCase())
+        );
+        if (titleMatchIndex === -1) {
+          titleMatchIndex = 0;
+        }
+      }
+
       if (titleMatchIndex === -1) {
         throw new Error("Soundtrack not found.");
       }
@@ -81,16 +94,26 @@ router.route("/search").post((req, res) => {
       return axios.get(
         `https://api.discogs.com/releases/${selectedSoundtrack.id}?key=${
           process.env.DISCOGS_KEY
-        }&secret=${
-          process.env.DISCOGS_SECRET
-        }`
+        }&secret=${process.env.DISCOGS_SECRET}`
       );
     })
     .then(response => {
-      res.send(response.data);
+      let { id, name } = response.data.artists[0];
+      // console.log(response.data, '&&&&&&&&&&&&&&&&&');
+      const titles = response.data.tracklist.map((track) => {
+        // let escapedTitle = track.title.replace(/(\W{1})/g)
+        console.log(track.artists)
+        return track.artists && name.toLowerCase() === 'various' ? {title : track.title, artist: track.artists[0].name} : {title: track.title, artist: name}
+      })
+      //we use Promise.all it resulves all seperate operations it alls each one to do it job sepretally and once done it combaines into one promise
+      return Promise.all([getComposer(id), titleSearch(titles)]);
+    })
+    .then(results => {
+      res.send(results);
     })
     .catch(err => {
       console.log(err.message);
+      res.end();
     });
 });
 
