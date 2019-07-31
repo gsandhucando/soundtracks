@@ -1,6 +1,8 @@
 const axios = require("axios");
 
-function titleSearch(tracks) {
+const filterResults = require("./filterResults");
+
+function titleSearch(tracks, movieTitle) {
   let searchPromisies = tracks.map(track => {
     // console.log(track)
     // console.log(track.title, track.artist)
@@ -19,12 +21,8 @@ function titleSearch(tracks) {
           let mappedResults = response.data.results.map(({ id, title }) => {
             return { id, title };
           });
-          let memo = new Set();
-          let filteredResults = mappedResults.filter(movie => {
-            let condition = memo.has(movie.title);
-            memo.add(movie.title);
-            return !condition;
-          });
+
+          let filteredResults = filterResults(mappedResults, movieTitle);
           return filteredResults;
         } else {
           return [];

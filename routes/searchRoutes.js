@@ -5,7 +5,16 @@ const axios = require("axios");
 
 const getComposer = require("../helper/getComposer");
 const titleSearch = require("../helper/titleSearch");
-const flattener = require('../helper/flattener');
+const flattener = require("../helper/flattener");
+const getSimilar = require("../helper/getSimilar");
+const getDetails = require("../helper/getDetails");
+
+const replacer = (match) => {
+  if (this.alt) {
+    return match === " " ? "+" : "";
+  }
+  return match === " " ? " " : "\\" + match;
+};
 
 router.route("/search").post((req, res) => {
   // console.log(req.body, '*********')
@@ -14,6 +23,8 @@ router.route("/search").post((req, res) => {
   const year = req.body.year ? req.body.year.trim() : null;
   //correctly formated title
   let movieTitle = req.body.movie.trim().replace(/\s+/, " ");
+  let movieId = 0;
+
   //call api to get all the resualts for movies
   axios
     .get(
@@ -52,6 +63,7 @@ router.route("/search").post((req, res) => {
       const film = response.data;
       // console.log(film, "***********");
       movieTitle = film.title;
+      movieId = film.id;
       //gets exact year and film title just in case user error
       const year = film.release_date.slice(0, 4);
       const country = film.production_countries[0].iso_3166_1.toLowerCase();
@@ -99,19 +111,20 @@ router.route("/search").post((req, res) => {
     })
     .then(response => {
       let { id, name } = response.data.artists[0];
+      let composerId = id;
       // console.log(response.data, '&&&&&&&&&&&&&&&&&');
       // console.log(response.data)
       const pattern = /([\&\(\)\!\'\"]{1})/g;
-      const replacer = (match) => {
-         return match === ' ' ? ' ' : "\\" + match
-       }
+
       let filteredTrackList = response.data.tracklist.filter(track => {
-        return pattern.test(track.title)
-      })
-      console.log(filteredTrackList.length, 'length of track list')
+        return pattern.test(track.title);
+      });
+      // console.log(filteredTrackList.length, "length of track list");
       const titles = filteredTrackList.map(track => {
-        let escapedTitle = track.title.replace(pattern, replacer)
-        let escapedName = track.artists ? track.artists[0].name.replace(pattern, replacer) : name.replace(pattern, replacer);
+        let escapedTitle = track.title.replace(pattern, replacer);
+        let escapedName = track.artists
+          ? track.artists[0].name.replace(pattern, replacer)
+          : name.replace(pattern, replacer);
         // console.log(escapedTitle);
         // console.log(track.artists, track.title);
         return track.artists && name.toLowerCase() === "various"
@@ -120,22 +133,37 @@ router.route("/search").post((req, res) => {
       });
       //we use Promise.all it resulves all seperate operations it alls each one to do it job sepretally and once done it combaines into one promise
       if (name.toLowerCase() === "various") {
-        return titleSearch(titles)
+        return titleSearch(titles);
       }
-      return Promise.all([getComposer(id), titleSearch(titles)]);
+      return Promise.all([
+        getComposer(composerId, movieTitle),
+        titleSearch(titles, movieTitle)
+        // getSimilar(movieId)
+      ]);
     })
     .then(results => {
-      let flattened = flattener(results)
+      let flattened = flattener(results);
+      const pattern = /(\W{1})/g;
+      let filteredFlattened = flattened.map(movie => {
+      let changeTitle = movie.title.replace(pattern, replacer.bind({alt: true}))
+      return {title: changeTitle, id: movie.id};
+  });
+  console.log(filteredFlattened)
+      let allPromises = filteredFlattened.map(each => {
+        return getDetails(each.title, each.id);
+      });
       let resultHash = {};
       for (let soundTrack of flattened) {
         if (resultHash[soundTrack.title]) {
-          resultHash[soundTrack.title] += 1
+          resultHash[soundTrack.title] += 1;
         } else {
-          resultHash[soundTrack.title] = 1
+          resultHash[soundTrack.title] = 1;
         }
       }
-      // console.log(resultHash)
-      res.send(resultHash);
+      return Promise.all(allPromises);
+    })
+    .then(results => {
+      res.send(results);
     })
     .catch(err => {
       console.log(err);
