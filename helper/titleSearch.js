@@ -10,12 +10,10 @@ function titleSearch(tracks, movieTitle) {
       .get(
         `https://api.discogs.com/database/search?key=${
           process.env.DISCOGS_KEY
-        }&secret=${process.env.DISCOGS_SECRET}&track=${track.title}&artist=${
-          track.artist
-        }&style=soundtrack&type=release`
+        }&secret=${process.env.DISCOGS_SECRET}&track=${track.title}&style=soundtrack&type=release`
       )
       .then(response => {
-        // console.log(track.title, track.artist ,response.data.results.length)
+        // console.log(track.title ,response.data.results.length)
         // console.log('************************************************')
         if (response.data.results.length > 0) {
           let mappedResults = response.data.results.map(({ id, title }) => {
