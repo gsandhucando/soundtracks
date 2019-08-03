@@ -14,10 +14,10 @@ function getComposer(id, movieTitle) {
       // console.log(response.data.releases, '%%%%%%%%%%%%%%%%%')
       //maping through and grabbing the id and title from respnse.data.releases
       if (response.data.releases.length > 0) {
-        let mappedReleases = response.data.releases.map(({ id, title }) => {
-          return { id, title };
-        });
-        let filteredReleases = filterResults(mappedReleases, movieTitle);
+        // let mappedReleases = response.data.releases.map(({ id, title }) => {
+        //   return { id, title };
+        // });
+        let filteredReleases = filterResults(response.data.releases, movieTitle);
         // console.log(filteredReleases, '^^^^^^^^^^^^^^^^^^^^^^^^^^^')
         return filteredReleases;
       } else {

@@ -2,26 +2,34 @@
 ///<https://api.discogs.com/database/search?q={query}&{?type,title,release_title,credit,artist,anv,label,genre,style,country,year,format,catno,barcode,track,submitter,contributor}
 const router = require("express").Router();
 const axios = require("axios");
+let Spotify = require("node-spotify-api");
+// console.log(process.env.SPOTIFY_ID)
 
 const getComposer = require("../helper/getComposer");
 const titleSearch = require("../helper/titleSearch");
 const flattener = require("../helper/flattener");
 const getSimilar = require("../helper/getSimilar");
-const getDetails = require("../helper/getDetails");
 const replacer = require("../helper/replacer");
 const getStyles = require("../helper/getStyles");
 const formatTitle = require("../helper/formatTitle");
+const getAlbums = require("../helper/getAlbums");
 
 const plusCheck = /[+]{1}(?=\+)+/g;
 const symbolCheck = /\W+/g;
 
 router.route("/search").post((req, res) => {
+  var spotify = new Spotify({
+    id: process.env.SPOTIFY_ID,
+    secret: process.env.SPOTIFY_SECRET
+  });
   // console.log(req.body, '*********')
   //movie title adding + to spaces
   const movie = req.body.movie.trim().replace(/\s+/, "+");
   const year = req.body.year ? req.body.year.trim() : null;
+  let mainSoundtrack = {}
+  let mainMovie = {}
   //correctly formated title
-  const movieTitle = req.body.movie
+  let movieTitle = req.body.movie
     .trim()
     .replace(/\s+/, " ")
     .toLowerCase();
@@ -63,8 +71,8 @@ router.route("/search").post((req, res) => {
     .then(response => {
       //get information we need from the film
       const film = response.data;
-      console.log(response.data, "^^^^^^^^^^^^^^");
-      const filmTitle = film.title.toLowerCase();
+      // console.log(response.data, "^^^^^^^^^^^^^^");
+      movieTitle = film.title.toLowerCase();
       movieId = film.id;
       //gets exact year and film title just in case user error
       const year = film.release_date.slice(0, 4);
@@ -72,30 +80,25 @@ router.route("/search").post((req, res) => {
       // console.log(film, "film$$$$$$");
       //calling discogs api to check the sound tracks
       // console.log(year, country);
-      return axios
-        .get(
-          `https://api.discogs.com/database/search?q=${movieTitle}&key=${
-            process.env.DISCOGS_KEY
-          }&secret=${process.env.DISCOGS_SECRET}&type=release&style=soundtrack`
-        )
-        .then(response => {
-          const { results } = response.data;
-          return { results, filmTitle };
-        });
+      return axios.get(
+        `https://api.discogs.com/database/search?q=${movieTitle}&key=${
+          process.env.DISCOGS_KEY
+        }&secret=${process.env.DISCOGS_SECRET}&type=release&style=soundtrack`
+      );
     })
-    .then(data => {
+    .then(({ data }) => {
       //we get a response back from searching for title year and country and get back a response of soundtracks
-      const { results, filmTitle } = data;
+      const { results } = data;
       //look through each soundtrack and compare the title for the one we looked for
       let titleMatchIndex = -1;
       if (results.length > 0) {
         titleMatchIndex = results.findIndex(
           soundTrack =>
-            soundTrack.title.trim().toLowerCase() === filmTitle ||
+            soundTrack.title.trim().toLowerCase() === movieTitle ||
             soundTrack.title
               .trim()
               .toLowerCase()
-              .includes(filmTitle)
+              .includes(movieTitle)
         );
         if (titleMatchIndex === -1) {
           titleMatchIndex = 0;
@@ -108,30 +111,21 @@ router.route("/search").post((req, res) => {
       //axios call to get detailed data for the soundtrack
       ///releases/{release_id}{?curr_abbr}
       const selectedSoundtrack = results[titleMatchIndex];
-      return axios
-        .get(
-          `https://api.discogs.com/releases/${selectedSoundtrack.id}?key=${
-            process.env.DISCOGS_KEY
-          }&secret=${process.env.DISCOGS_SECRET}`
-        )
-        .then(response => {
-          return { soundtrack: response.data, filmTitle };
-        });
+      return axios.get(
+        `https://api.discogs.com/releases/${selectedSoundtrack.id}?key=${
+          process.env.DISCOGS_KEY
+        }&secret=${process.env.DISCOGS_SECRET}`
+      );
     })
-    .then(data => {
-      // console.log(response.data);
-      let { id, name } = data.soundtrack.artists[0];
-      const { genres, styles } = data.soundtrack;
-      const { filmTitle } = data;
+    .then(({ data }) => {
+      console.log(data);
+      const soundtrack = data
+      console.log(soundtrack)
+      mainSoundtrack = soundtrack
+      let { id, name } = soundtrack.artists[0];
+      const { genres, styles, tracklist } = soundtrack;
       let composerId = id;
-      // console.log(response.data, '&&&&&&&&&&&&&&&&&');
-      // console.log(response.data)
-
-      // let filteredTrackList = response.data.tracklist.filter(track => {
-      //   return pattern.test(track.title);
-      // });
-      // console.log(filteredTrackList.length, "length of track list");
-      const titles = data.soundtrack.tracklist.map(track => {
+      const titles = tracklist.map(track => {
         let escapedTitle = track.title
           .replace(symbolCheck, replacer)
           .replace(plusCheck, "");
@@ -149,20 +143,27 @@ router.route("/search").post((req, res) => {
       //we use Promise.all it resulves all seperate operations it alls each one to do it job sepretally and once done it combaines into one promise
       if (name.toLowerCase() === "various") {
         return Promise.all([
-          titleSearch(titles, filmTitle),
-          getStyles(styles, genres, filmTitle),
+          titleSearch(titles, movieTitle),
+          getStyles(styles, genres, movieTitle),
           getSimilar(movieId)
         ]);
       }
-      console.log(filmTitle, "++++++++==========");
+      return Promise.all([
+        titleSearch(titles, movieTitle),
+        getStyles(styles, genres, movieTitle),
+        getSimilar(movieId),
+        getComposer(composerId)
+      ]);
+      // console.log(movieTitle, "++++++++==========");
     })
     .then(results => {
       let flattened = flattener(results);
       const pattern = /(\W{1})/g;
       let filteredFlattened = flattened.map(movie => {
         let newTitle = formatTitle(movie.title);
-        return { title: newTitle, id: movie.id };
-      });
+        return { ...movie, title: newTitle };
+      })
+      // .unshift(mainSoundtrack)
       // console.log(filteredFlattened)
       // let allPromises = filteredFlattened.map(each => {
       //   return getDetails(each.title, each.id);
@@ -175,7 +176,10 @@ router.route("/search").post((req, res) => {
           resultHash[soundTrack.title] = 1;
         }
       }
-      res.send(filteredFlattened);
+      return getAlbums(spotify, filteredFlattened.slice(0,10));
+    })
+    .then(data => {
+      res.send(data);
     })
     .catch(err => {
       console.log(err);

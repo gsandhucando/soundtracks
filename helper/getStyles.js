@@ -15,12 +15,12 @@ const getStyles = (styles, genres, movieTitle) => {
   )
   .then(response => {
     if (response.data.results.length > 0) {
-      let mappedResults = response.data.results.map(({ id, title }) => {
-        return { id, title };
-      });
+      // let mappedResults = response.data.results.map(({ id, title }) => {
+      //   return { id, title };
+      // });
 
-      let filteredResults = filterResults(mappedResults, movieTitle);
-      console.log("***********************************", filteredResults)
+      let filteredResults = filterResults(response.data.results, movieTitle);
+      // console.log("***********************************", filteredResults)
       return filteredResults;
     } else {
       return [];

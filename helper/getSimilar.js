@@ -10,7 +10,7 @@ const getSimilar = (movie_id) => {
     )
     .then(response => {
       let { results } = response.data;
-      console.log(results)
+      // console.log(results)
       return results
     });
 };

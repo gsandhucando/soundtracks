@@ -8,7 +8,7 @@ const filterResults = (arr, movieTitle) => {
       const newTitle = formatTitle(movie.title);
       let condition = memo.has(newTitle);
 
-      console.log(newTitle);
+      // console.log(newTitle);
       // console.log(movieTitle, "@@@@@@@@@@@@@@@@@@@")
       if (newTitle.toLowerCase().includes(movieTitle.toLowerCase())) {
         // console.log(movie.title, '***************')
