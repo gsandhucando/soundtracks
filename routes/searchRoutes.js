@@ -118,43 +118,39 @@ router.route("/search").post((req, res) => {
       );
     })
     .then(({ data }) => {
-      console.log(data);
+      // console.log(data);
       const soundtrack = data
-      console.log(soundtrack)
+      // console.log(soundtrack)
       mainSoundtrack = soundtrack
       let { id, name } = soundtrack.artists[0];
       const { genres, styles, tracklist } = soundtrack;
       let composerId = id;
-      const titles = tracklist.map(track => {
-        let escapedTitle = track.title
-          .replace(symbolCheck, replacer)
-          .replace(plusCheck, "");
-        let escapedName = track.artists
-          ? track.artists[0].name
-              .replace(symbolCheck, replacer)
-              .replace(plusCheck, "")
-          : name.replace(symbolCheck, replacer).replace(plusCheck, "");
-        // console.log(escapedTitle);
-        // console.log(track.artists, track.title);
-        return track.artists && name.toLowerCase() === "various"
-          ? { title: escapedTitle, artist: escapedName }
-          : { title: escapedTitle, artist: escapedName };
-      });
+      // const titles = tracklist.map(track => {
+      //   let escapedTitle = track.title
+      //     .replace(symbolCheck, replacer)
+      //     .replace(plusCheck, "");
+      //   let escapedName = track.artists
+      //     ? track.artists[0].name
+      //         .replace(symbolCheck, replacer)
+      //         .replace(plusCheck, "")
+      //     : name.replace(symbolCheck, replacer).replace(plusCheck, "");
+      //   // console.log(escapedTitle);
+      //   // console.log(track.artists, track.title);
+      //   return track.artists && name.toLowerCase() === "various"
+      //     ? { title: escapedTitle, artist: escapedName }
+      //     : { title: escapedTitle, artist: escapedName };
+      // });
       //we use Promise.all it resulves all seperate operations it alls each one to do it job sepretally and once done it combaines into one promise
-      if (name.toLowerCase() === "various") {
-        return Promise.all([
-          titleSearch(titles, movieTitle),
-          getStyles(styles, genres, movieTitle),
-          getSimilar(movieId)
-        ]);
-      }
-      return Promise.all([
-        titleSearch(titles, movieTitle),
-        getStyles(styles, genres, movieTitle),
-        getSimilar(movieId),
-        getComposer(composerId)
-      ]);
-      // console.log(movieTitle, "++++++++==========");
+      // if (name.toLowerCase() === "various") {
+      //   return Promise.all([
+      //     titleSearch(titles, movieTitle),
+      //     getStyles(styles, genres, movieTitle),
+      //     getSimilar(movieId)
+      //   ]);
+      // }
+
+      return getSimilar(movieId)
+
     })
     .then(results => {
       let flattened = flattener(results);
@@ -170,6 +166,7 @@ router.route("/search").post((req, res) => {
       // });
       let resultHash = {};
       for (let soundTrack of filteredFlattened) {
+        // console.log(soundTrack.title, 'soundTrack')
         if (resultHash[soundTrack.title]) {
           resultHash[soundTrack.title] += 1;
         } else {

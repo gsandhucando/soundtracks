@@ -1,4 +1,5 @@
 let takeAverage = require("./takeAverage");
+let titleCheck = require("./titleCheck");
 
 const getAlbums = (spotify, albums) => {
   let allAlbums = albums.map(album => {
@@ -16,31 +17,29 @@ const getAlbums = (spotify, albums) => {
               soundTrack.release_date.length > 4
                 ? soundTrack.release_date.slice(0, 4)
                 : soundTrack.release_date;
-                console.log(
-                album.release_date === soundTrack.release_date,
-                album.release_date,
-                album.year,
-                soundTrack.release_date,
-                albumDate === soundTrackDate,
-                soundTrack.name.trim().toLowerCase() === album.title,
-                album.title,
-                soundTrack.name
-              );
+              //   console.log(
+              //   album.release_date === soundTrack.release_date,
+              //   album.release_date,
+              //   album.year,
+              //   soundTrack.release_date,
+              //   albumDate === soundTrackDate,
+              //   soundTrack.name.trim().toLowerCase() === album.title,
+              //   album.title,
+              //   soundTrack.name
+              // );
             return (
               (soundTrack.name.trim().toLowerCase() === album.title ||
-              soundTrack.name
+              titleCheck(soundTrack.name
                 .trim()
-                .toLowerCase()
-                .includes(album.title)) &&
-                albumDate === soundTrackDate
-            );
+                .toLowerCase(), album.title) && albumDate === soundTrackDate
+            ))
           });
-          // console.log(titleMatchIndex, "#########################################", albums.items[titleMatchIndex])
+          console.log(titleMatchIndex, "#########################################", albums.items[titleMatchIndex])
           if (titleMatchIndex !== -1) {
-            console.log(
-              albums.items[titleMatchIndex].id,
-              "))))))))))))))))))))))))))))))))))))))))))))"
-            );
+            // console.log(
+            //   albums.items[titleMatchIndex].id,
+            //   "))))))))))))))))))))))))))))))))))))))))))))"
+            // );
             return spotify.request(
               `https://api.spotify.com/v1/albums/${
                 albums.items[titleMatchIndex].id
