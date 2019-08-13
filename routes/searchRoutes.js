@@ -3,6 +3,7 @@
 const router = require("express").Router();
 const axios = require("axios");
 let Spotify = require("node-spotify-api");
+
 // console.log(process.env.SPOTIFY_ID)
 
 const getComposer = require("../helper/getComposer");
@@ -13,6 +14,8 @@ const replacer = require("../helper/replacer");
 const getStyles = require("../helper/getStyles");
 const formatTitle = require("../helper/formatTitle");
 const getAlbums = require("../helper/getAlbums");
+const getRecommendations = require("../helper/getRecommendation");
+const nearestN = require('../algorithms/nearestN');
 
 const plusCheck = /[+]{1}(?=\+)+/g;
 const symbolCheck = /\W+/g;
@@ -149,7 +152,7 @@ router.route("/search").post((req, res) => {
       //   ]);
       // }
 
-      return getSimilar(movieId)
+      return Promise.all([getSimilar(movieId), getRecommendations(movieId)])
 
     })
     .then(results => {
@@ -173,10 +176,17 @@ router.route("/search").post((req, res) => {
           resultHash[soundTrack.title] = 1;
         }
       }
-      return getAlbums(spotify, filteredFlattened.slice(0,10));
+      return getAlbums(spotify, filteredFlattened);
     })
     .then(data => {
       res.send(data);
+      let result = nearestN(data, data[0])
+      console.log(result)
+      // let min = Math.min(...result)
+      let sortedResult = result.sort((a,b) => {
+        return b - a
+      })
+      res.send(sortedResult)
     })
     .catch(err => {
       console.log(err);
